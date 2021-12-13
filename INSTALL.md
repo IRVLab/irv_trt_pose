@@ -30,6 +30,10 @@ Now you have a virtual environment, if you're not already on it you can use `wor
 - `pip install Pillow==6.2.2`
 - `pip install traitlets`
 - `pip install gpustat`
+- `pip install nvidia-pyindex`
+- `pip install nvidia-tensorrt`
+
+You might need to install tensorrt (last two pip installs) differentaly on the Jetson.
 
 ## Install Modules
 

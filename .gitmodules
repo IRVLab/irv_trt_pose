@@ -1,0 +1,6 @@
+[submodule "trt_modules/torch2trt"]
+	path = trt_modules/torch2trt
+	url = git@github.com:NVIDIA-AI-IOT/torch2trt.git
+[submodule "trt_modules/trt_pose"]
+	path = trt_modules/trt_pose
+	url = git@github.com:NVIDIA-AI-IOT/trt_pose.git

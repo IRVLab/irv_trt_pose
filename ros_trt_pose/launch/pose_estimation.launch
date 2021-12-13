@@ -1,0 +1,5 @@
+<launch>
+    <group ns="/trt/">
+        <node name="trt_estimator" pkg="ros_trt_pose" type="estimator.py" respawn="true" output="screen"></node>
+    </group>
+</launch>

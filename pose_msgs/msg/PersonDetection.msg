@@ -1,3 +1,4 @@
+std_msgs/Header header
 uint32 num_people_detected
 uint32 person_id
 BodypartDetection nose

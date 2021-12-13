@@ -7,7 +7,7 @@
 
 ## Create VirtualEnv
 
-- pip3 install virtualenv virtualenvwrapper
+- `pip3 install virtualenv virtualenvwrapper`
 - Set up your virtual environment wrapper. You'll need to add stuff to your bashrc (what's below is what I have, your filepaths might be different so make sure you check!)
 
 ```
@@ -16,7 +16,7 @@ export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
 export WORKON_HOME=$HOME/.virtualenvs
 source $HOME/.local/bin/virtualenvwrapper.sh
 ```
-- mkvirtualenv --system-site-packages trt_pose
+- `mkvirtualenv --system-site-packages trt_pose`
 
 Now you have a virtual environment, if you're not already on it you can use `workon trt_pose`.
 

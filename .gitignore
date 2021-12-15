@@ -1,3 +1,5 @@
 irv_trt_pose/src/rtrt_pkg_lib/__pycache__/
 trt_modules/
 
+irv_trt_pose/trt_config_files/resnet18_baseline_att_224x224_A_epoch_249_trt.pth
+trt_modules/trt_pose

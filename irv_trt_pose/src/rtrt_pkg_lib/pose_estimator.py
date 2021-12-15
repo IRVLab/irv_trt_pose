@@ -25,6 +25,8 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from pose_msgs.msg import BodypartDetection, PersonDetection  # For pose_msgs
 
+from cv_bridge import CvBridge, CvBridgeError
+
 # TRT_pose related
 import cv2
 import numpy as np
@@ -39,6 +41,8 @@ class TRTPoseNode(object):
         self.model_weights = None
         self.width = 224
         self.height = 224
+        self.input_width = None
+        self.input_height = None
         self.i = 0
         self.image = None
         self.model_trt = None
@@ -50,7 +54,7 @@ class TRTPoseNode(object):
         self.xy_circles = []
         self.p = None
 
-        # ROS2 parameters
+        # ROS parameters
         self.base_dir = rospy.get_param('base_dir', '/home/michael/gesture_ws/src/irv_trt_pose/irv_trt_pose/trt_config_files/')
         # Based Dir should contain: model_file resnet/densenet, human_pose json file
 
@@ -60,7 +64,11 @@ class TRTPoseNode(object):
 
         # ROS related init
         # Image subscriber from cam2image
-        self.subscriber_ = rospy.Subscriber('usb_cam/image_raw', ImageMsg, self.read_cam_callback, buff_size=10)
+        self.subscriber_ = rospy.Subscriber('videofile/image_raw', ImageMsg, self.read_cam_callback, buff_size=10)
+
+        # CVBridge initilization
+        self.bridge_object = CvBridge()
+
         self.image_pub = rospy.Publisher('detections_image', ImageMsg, queue_size=10)
         # Publisher for Body Joints and Skeleton
         self.body_joints_pub = rospy.Publisher('body_joints', Marker, queue_size=1000)
@@ -92,8 +100,15 @@ class TRTPoseNode(object):
 
     # Subscribe and Publish to image topic
     def read_cam_callback(self, msg):
-        img = np.asarray(msg.data)
-        self.image = np.reshape(img, (msg.height, msg.width, 3))
+        #img = np.frombuffer(msg.data, dtype=np.uint8)
+        #self.image = img.reshape((msg.height, msg.width, 3))
+
+        if self.input_width == None:
+            self.input_width = msg.width
+            self.input_height = msg.height
+
+        self.cv_image = self.bridge_object.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        self.image = cv2.resize(self.cv_image, (self.width, self.height))
         self.annotated_image = self.execute()
 
         image_msg = self.image_np_to_image_msg(self.annotated_image)

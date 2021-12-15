@@ -51,7 +51,7 @@ class TRTPoseNode(object):
         self.p = None
 
         # ROS2 parameters
-        self.base_dir = rospy.get_param('base_dir', '/home/michael/gesture_ws/src/ros_trt_pose/ros_trt_pose/trt_config_files/')
+        self.base_dir = rospy.get_param('base_dir', '/home/michael/gesture_ws/src/irv_trt_pose/irv_trt_pose/trt_config_files/')
         # Based Dir should contain: model_file resnet/densenet, human_pose json file
 
         self.model_name = rospy.get_param('model', 'resnet18') # default to Resnet18

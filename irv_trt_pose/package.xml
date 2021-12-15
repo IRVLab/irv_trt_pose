@@ -18,7 +18,7 @@
 
 <!-- NOTE: This NVIDIA copyright is provided since the original ROS2 version of this package was created by NVIDIA.-->
 <package format="2">
-  <name>ros_trt_pose</name>
+  <name>irv_trt_pose</name>
   <version>0.1.0</version>
   <description>ROS package enabling Robots to use trt_pose.</description>
 

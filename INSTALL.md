@@ -31,7 +31,7 @@ Now you have a virtual environment, if you're not already on it you can use `wor
 - `pip install traitlets`
 - `pip install gpustat`
 - `pip install nvidia-pyindex`
-- `pip install nvidia-tensorrt`
+- `pip install nvidia-tensorrt==7.2.*`
 
 You might need to install tensorrt (last two pip installs) differentaly on the Jetson.
 

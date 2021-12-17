@@ -24,6 +24,7 @@ from sensor_msgs.msg import Image as ImageMsg
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from pose_msgs.msg import BodypartDetection, PersonDetection  # For pose_msgs
+from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -75,6 +76,13 @@ class TRTPoseNode(object):
         self.pre_crop = rospy.get_param('pre_crop', False)
         self.pre_crop_topic = rospy.get_param('pre_crop_topic', 'bbox')
 
+        if self.pre_crop:
+            self.crop_box_sub = rospy.Subscriber(self.pre_crop_topic, BoundingBoxes, self.bbox_callback, buff_size=10)
+            self.last_bbox = None
+            self.last_bbox_time = None
+            self.pre_crop_time = rospy.get_param('pre_crop_time', 0.1) # How long a bbox can be considered valid
+            self.pre_crop_prob = rospy.get_param('pre_crop_prob', 0.8)
+            self.pre_crop_tolerance = rospy.get_param('pre_crop_tolerance', 0.15) # How much to expand bbox size.
 
         # Filter parameters
 
@@ -124,6 +132,10 @@ class TRTPoseNode(object):
             self.input_height = msg.height
 
         self.image = self.bridge_object.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+
+        if self.pre_crop:
+            self.image = self.crop_to_bbox(self.image, self.last_bbox, self.last_bbox_time)
+
         self.annotated_image = self.execute()
 
         image_msg = self.image_np_to_image_msg(self.annotated_image)
@@ -132,6 +144,36 @@ class TRTPoseNode(object):
         if self.show_image_param:
             cv2.imshow('frame', self.annotated_image)
             cv2.waitKey(1)
+
+    def bbox_callback(self, msg):
+        self.last_bbox = msg.bounding_boxes[0]
+        self.last_bbox_time = rospy.Time.now().to_sec()
+
+    def crop_to_bbox(self, image, bbox, time):
+        now = rospy.Time.now().to_sec()
+
+        if ((now - time) < self.pre_crop_time) and (bbox.probability > self.pre_crop_prob):
+            # If the bbox is recent enough and of high enough probability, crop to it.
+            x_grow = int(self.input_width * self.pre_crop_tolerance)
+            y_grow = int(self.input_height * self.pre_crop_tolerance)
+
+            # Expand min bbox coordinates
+            min_x_g = bbox.xmin - x_grow
+            xmin = 0 if min_x_g < 0 else min_x_g
+            min_y_g = bbox.ymin - y_grow
+            ymin = 0 if min_y_g < 0 else min_y_g
+
+            # Expand max bbox coordinates
+            max_x_g = bbox.xmax + x_grow
+            xmax = self.input_width if max_x_g > self.input_width else max_x_g
+            max_y_g = bbox.ymax + y_grow
+            ymax = self.input_height if max_x_g > self.input_height else max_x_g
+
+            cropped = image[xmin:xmax, ymin:ymax]
+            return cropped
+
+        else:
+            return image
 
     # Borrowed from OpenPose-ROS repo
     def image_np_to_image_msg(self, image_np):

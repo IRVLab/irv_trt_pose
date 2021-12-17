@@ -64,7 +64,7 @@ class TRTPoseNode(object):
 
         # ROS related init
         # Image subscriber from cam2image
-        self.subscriber_ = rospy.Subscriber('videofile/image_raw', ImageMsg, self.read_cam_callback, buff_size=10)
+        self.subscriber_ = rospy.Subscriber('webcam/image_raw', ImageMsg, self.read_cam_callback, buff_size=10)
 
         # CVBridge initilization
         self.bridge_object = CvBridge()
@@ -100,19 +100,20 @@ class TRTPoseNode(object):
 
     # Subscribe and Publish to image topic
     def read_cam_callback(self, msg):
-        #img = np.frombuffer(msg.data, dtype=np.uint8)
-        #self.image = img.reshape((msg.height, msg.width, 3))
+        if self.model_trt == None:
+            rospy.logwarn("TRT model not yet initialized, please wait...")
+            return
 
         if self.input_width == None:
             self.input_width = msg.width
             self.input_height = msg.height
 
-        self.cv_image = self.bridge_object.imgmsg_to_cv2(msg, desired_encoding="bgr8")
-        self.image = cv2.resize(self.cv_image, (self.width, self.height))
+        self.image = self.bridge_object.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.annotated_image = self.execute()
 
         image_msg = self.image_np_to_image_msg(self.annotated_image)
         self.image_pub.publish(image_msg)
+
         if self.show_image_param:
             cv2.imshow('frame', self.annotated_image)
             cv2.waitKey(1)
@@ -155,7 +156,7 @@ class TRTPoseNode(object):
         marker_joints.color.r = 1.0
         marker_joints.color.g = 0.0
         marker_joints.color.b = 0.0
-        marker_joints.lifetime = rospy.Duration(seconds=3, nanoseconds=5e2).to_msg()
+        marker_joints.lifetime = rospy.Duration(secs=3, nsecs=5e2)
         return marker_joints
 
 
@@ -164,7 +165,7 @@ class TRTPoseNode(object):
         marker_line.header.frame_id = '/map'
         marker_line.id = 1
         marker_line.ns = "joint_line"
-        marker_line.header.stamp = rospy.now().to_msg()
+        marker_line.header.stamp = rospy.Time.now()
         marker_line.type = marker_line.LINE_LIST
         marker_line.action = marker_line.ADD
         marker_line.scale.x = 0.1
@@ -174,7 +175,7 @@ class TRTPoseNode(object):
         marker_line.color.r = 0.0
         marker_line.color.g = 1.0
         marker_line.color.b = 0.0
-        marker_line.lifetime = Duration(seconds=3, nanoseconds=5e2).to_msg()
+        marker_line.lifetime = rospy.Duration(secs=3, nsecs=5e2)
         return marker_line
 
     def init_all_body_msgs(self, _msg, count):
@@ -429,5 +430,7 @@ class TRTPoseNode(object):
                         self.body_joints_pub.publish(marker_joints)
 
                 rospy.loginfo("Published Message for Person ID:{}".format(primary_msg.person_id))
-        except:
+        except Exception as err:
+            rospy.logwarn("Some error in parse_k(): {},  {}".format(type(err), str(err)))
             pass
+            

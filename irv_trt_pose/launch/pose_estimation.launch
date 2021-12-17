@@ -1,5 +1,8 @@
 <launch>
     <group ns="/">
+        <param name="in_image_topic", type="str" value="webcam/image_raw"></param>
+        <param name="pre_crop", type="bool" value="true"></param>
+        <param name="pre_crop_topic", type="str" value=""></param>
         <node name="trt_estimator" pkg="irv_trt_pose" type="estimator.py" respawn="true" output="screen"></node>
     </group>
 </launch>

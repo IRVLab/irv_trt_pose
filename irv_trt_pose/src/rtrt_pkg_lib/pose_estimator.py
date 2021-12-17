@@ -62,19 +62,34 @@ class TRTPoseNode(object):
         self.point_range = rospy.get_param('point_range', 10) # default range is 0 to 10
         self.show_image_param = rospy.get_param('show_image', False)# Show image in cv2.imshow
 
+
+        # Topic parameters
+        self.in_image_topic = rospy.get_param('in_image_topic', 'image_raw')
+        self.out_image_topic = rospy.get_param('out_image_topic', 'pose_image')
+        self.joints_topic = rospy.get_param('joints_topic', 'body_joints')
+        self.skeleton_topic = rospy.get_param('skeleton_topic', 'body_skeleton')
+        self.pose_topic = rospy.get_param('pose_topic', 'pose_msgs')
+
+        
+        # Pre-crop init
+        self.pre_crop = rospy.get_param('pre_crop', False)
+        self.pre_crop_topic = rospy.get_param('pre_crop_topic', 'bbox')
+
+
+        # Filter parameters
+
         # ROS related init
         # Image subscriber from cam2image
-        self.subscriber_ = rospy.Subscriber('webcam/image_raw', ImageMsg, self.read_cam_callback, buff_size=10)
+        self.subscriber_ = rospy.Subscriber(self.in_image_topic, ImageMsg, self.read_cam_callback, buff_size=10)
 
         # CVBridge initilization
         self.bridge_object = CvBridge()
 
-        self.image_pub = rospy.Publisher('detections_image', ImageMsg, queue_size=10)
-        # Publisher for Body Joints and Skeleton
-        self.body_joints_pub = rospy.Publisher('body_joints', Marker, queue_size=1000)
-        self.body_skeleton_pub = rospy.Publisher('body_skeleton', Marker, queue_size=10)
-        # Publishing pose Message
-        self.publish_pose = rospy.Publisher('pose_msgs', PersonDetection, queue_size=100)
+        # Standard publishers
+        self.image_pub = rospy.Publisher(self.out_image_topic, ImageMsg, queue_size=10)
+        self.body_joints_pub = rospy.Publisher(self.joints_topic, Marker, queue_size=1000)
+        self.body_skeleton_pub = rospy.Publisher(self.skeleton_topic, Marker, queue_size=10)
+        self.publish_pose = rospy.Publisher(self.pose_topic, PersonDetection, queue_size=100)
 
     def start(self):
         # Convert to TRT and Load Params

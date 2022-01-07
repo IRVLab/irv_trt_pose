@@ -24,7 +24,7 @@ from sensor_msgs.msg import Image as ImageMsg
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from pose_msgs.msg import BodypartDetection, PersonDetection  # For pose_msgs
-from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
+#from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -63,7 +63,6 @@ class TRTPoseNode(object):
         self.point_range = rospy.get_param('point_range', 10) # default range is 0 to 10
         self.show_image_param = rospy.get_param('show_image', False)# Show image in cv2.imshow
 
-
         # Topic parameters
         self.in_image_topic = rospy.get_param('in_image_topic', 'image_raw')
         self.out_image_topic = rospy.get_param('out_image_topic', 'pose_image')
@@ -71,7 +70,6 @@ class TRTPoseNode(object):
         self.skeleton_topic = rospy.get_param('skeleton_topic', 'body_skeleton')
         self.pose_topic = rospy.get_param('pose_topic', 'pose_msgs')
 
-        
         # Pre-crop init
         self.pre_crop = rospy.get_param('pre_crop', False)
         self.pre_crop_topic = rospy.get_param('pre_crop_topic', 'bbox')
@@ -111,18 +109,29 @@ class TRTPoseNode(object):
         rospy.loginfo("Model weights loaded...\n Waiting for images...\n")
 
     def execute(self):
+        rospy.logwarn('preprocess {} '.format(rospy.Time.now().to_nsec()))
         data = preprocess(image=self.image, width=self.width, height=self.height)
+        rospy.logwarn('inference {} '.format(rospy.Time.now().to_nsec()))
         cmap, paf = self.model_trt(data)
+        rospy.logwarn('parse {} '.format(rospy.Time.now().to_nsec()))
         cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
-        self.counts, self.objects, self.peaks = self.parse_objects(cmap,
-                                                                   paf)  # , cmap_threshold=0.15, link_threshold=0.15)
-        annotated_image = draw_objects(image=self.image, object_counts=self.counts, objects=self.objects, normalized_peaks=self.peaks, topology=self.topology)
+        self.counts, self.objects, self.peaks = self.parse_objects(cmap, paf)  # , cmap_threshold=0.15, link_threshold=0.15)
+        # rospy.logwarn('draw_objs {} '.format(rospy.Time.now().to_nsec()))
+        # self.annotated_image = draw_objects(image=self.image, object_counts=self.counts, objects=self.objects, normalized_peaks=self.peaks, topology=self.topology)
         self.parse_k()
 
-        return annotated_image
+        # rospy.logwarn('cvbridge annotated {} '.format(rospy.Time.now().to_nsec()))
+        # image_msg = self.image_np_to_image_msg(self.annotated_image)
+        # rospy.logwarn('publish annotated {} '.format(rospy.Time.now().to_nsec()))
+        # self.image_pub.publish(image_msg)
+
+        if self.show_image_param:
+            cv2.imshow('frame', self.annotated_image)
+            cv2.waitKey(1)
 
     # Subscribe and Publish to image topic
     def read_cam_callback(self, msg):
+        rospy.logerr('Image Callback recieved, stamp {}'.format(msg.header.stamp.nsecs))
         if self.model_trt == None:
             rospy.logwarn("TRT model not yet initialized, please wait...")
             return
@@ -131,19 +140,13 @@ class TRTPoseNode(object):
             self.input_width = msg.width
             self.input_height = msg.height
 
+        rospy.logwarn('cvbridge {} '.format(rospy.Time.now().to_nsec()))
         self.image = self.bridge_object.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        rospy.logwarn('execute {} '.format(rospy.Time.now().to_nsec()))
+        self.annotated_image = self.execute()
 
         if self.pre_crop:
             self.image = self.crop_to_bbox(self.image, self.last_bbox, self.last_bbox_time)
-
-        self.annotated_image = self.execute()
-
-        image_msg = self.image_np_to_image_msg(self.annotated_image)
-        self.image_pub.publish(image_msg)
-
-        if self.show_image_param:
-            cv2.imshow('frame', self.annotated_image)
-            cv2.waitKey(1)
 
     def bbox_callback(self, msg):
         self.last_bbox = msg.bounding_boxes[0]
@@ -288,12 +291,12 @@ class TRTPoseNode(object):
                         if k == 0:
                             primary_msg.nose = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.nose))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: nose at X:{}, Y:{}".format(primary_msg.nose.x, primary_msg.nose.y))
                         if k == 1:
                             primary_msg.left_eye = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_eye))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_eye at X:{}, Y:{}".format(primary_msg.left_eye.x,
                                                                                     primary_msg.left_eye.y))
                             if self.valid_marker_point(primary_msg.nose):
@@ -303,7 +306,7 @@ class TRTPoseNode(object):
                         if k == 2:
                             primary_msg.right_eye = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_eye))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_eye at X:{}, Y:{}".format(primary_msg.right_eye.x,
                                                                                      primary_msg.right_eye.y))
                             if self.valid_marker_point(primary_msg.nose):
@@ -316,7 +319,7 @@ class TRTPoseNode(object):
                         if k == 3:
                             primary_msg.left_ear = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_ear))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_ear at X:{}, Y:{}".format(primary_msg.left_ear.x,
                                                                                     primary_msg.left_ear.y))
                             if self.valid_marker_point(primary_msg.left_eye):
@@ -326,7 +329,7 @@ class TRTPoseNode(object):
                         if k == 4:
                             primary_msg.right_ear = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_ear))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_ear at X:{}, Y:{}".format(primary_msg.right_ear.x,
                                                                                      primary_msg.right_ear.y))
 
@@ -337,7 +340,7 @@ class TRTPoseNode(object):
                         if k == 5:
                             primary_msg.left_shoulder = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_shoulder))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_shoulder at X:{}, Y:{}".format(primary_msg.left_shoulder.x,
                                                                                          primary_msg.left_shoulder.y))
                             if self.valid_marker_point(primary_msg.left_ear):
@@ -347,7 +350,7 @@ class TRTPoseNode(object):
                         if k == 6:
                             primary_msg.right_shoulder = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_shoulder))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_shoulder at X:{}, Y:{}".format(primary_msg.right_shoulder.x,
                                                                                           primary_msg.right_shoulder.y))
 
@@ -358,7 +361,7 @@ class TRTPoseNode(object):
                         if k == 7:
                             primary_msg.left_elbow = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_elbow))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_elbow at X:{}, Y:{}".format(primary_msg.left_elbow.x,
                                                                                       primary_msg.left_elbow.y))
 
@@ -369,7 +372,7 @@ class TRTPoseNode(object):
                         if k == 8:
                             primary_msg.right_elbow = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_elbow))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_elbow at X:{}, Y:{}".format(primary_msg.right_elbow.x,
                                                                                        primary_msg.right_elbow.y))
 
@@ -380,7 +383,7 @@ class TRTPoseNode(object):
                         if k == 9:
                             primary_msg.left_wrist = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_wrist))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_wrist at X:{}, Y:{}".format(primary_msg.left_wrist.x,
                                                                                       primary_msg.left_wrist.y))
 
@@ -391,7 +394,7 @@ class TRTPoseNode(object):
                         if k == 10:
                             primary_msg.right_wrist = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_wrist))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_wrist at X:{}, Y:{}".format(primary_msg.right_wrist.x,
                                                                                        primary_msg.right_wrist.y))
 
@@ -402,14 +405,14 @@ class TRTPoseNode(object):
                         if k == 11:
                             primary_msg.left_hip = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_hip))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_hip at X:{}, Y:{}".format(primary_msg.left_hip.x,
                                                                                     primary_msg.left_hip.y))
 
                         if k == 12:
                             primary_msg.right_hip = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_hip))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_hip at X:{}, Y:{}".format(primary_msg.right_hip.x,
                                                                                      primary_msg.right_hip.y))
 
@@ -420,7 +423,7 @@ class TRTPoseNode(object):
                         if k == 13:
                             primary_msg.left_knee = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_knee))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_knee at X:{}, Y:{}".format(primary_msg.left_knee.x,
                                                                                      primary_msg.left_knee.y))
 
@@ -431,7 +434,7 @@ class TRTPoseNode(object):
                         if k == 14:
                             primary_msg.right_knee = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_knee))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_knee at X:{}, Y:{}".format(primary_msg.right_knee.x,
                                                                                       primary_msg.right_knee.y))
 
@@ -442,7 +445,7 @@ class TRTPoseNode(object):
                         if k == 15:
                             primary_msg.left_ankle = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.left_ankle))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: left_ankle at X:{}, Y:{}".format(primary_msg.left_ankle.x,
                                                                                       primary_msg.left_ankle.y))
 
@@ -452,7 +455,7 @@ class TRTPoseNode(object):
                         if k == 16:
                             primary_msg.right_ankle = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.right_ankle))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: right_ankle at X:{}, Y:{}".format(primary_msg.right_ankle.x,
                                                                                        primary_msg.right_ankle.y))
 
@@ -463,7 +466,7 @@ class TRTPoseNode(object):
                         if k == 17:
                             primary_msg.neck = self.write_body_part_msg(_location)
                             marker_joints.points.append(self.add_point_to_marker(primary_msg.neck))
-                            rospy.loginfo(
+                            rospy.logdebug(
                                 "Body Part Detected: neck at X:{}, Y:{}".format(primary_msg.neck.x, primary_msg.neck.y))
 
                             if self.valid_marker_point(primary_msg.nose):
@@ -486,7 +489,7 @@ class TRTPoseNode(object):
                         self.body_skeleton_pub.publish(marker_skeleton)
                         self.body_joints_pub.publish(marker_joints)
 
-                rospy.loginfo("Published Message for Person ID:{}".format(primary_msg.person_id))
+                rospy.logdebug("Published Message for Person ID:{}".format(primary_msg.person_id))
         except Exception as err:
             rospy.logwarn("Some error in parse_k(): {},  {}".format(type(err), str(err)))
             pass

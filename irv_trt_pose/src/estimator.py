@@ -1,4 +1,4 @@
-#! /home/michael/.virtualenvs/trt_pose/bin/python3
+#! /home/michael/.virtualenvs/osg/bin/python3
 
 
 import rospy

@@ -56,7 +56,7 @@ class TRTPoseNode(object):
         self.p = None
 
         # ROS parameters
-        self.base_dir = rospy.get_param('base_dir', '/home/michael/gesture_ws/src/irv_trt_pose/irv_trt_pose/trt_config_files/')
+        self.base_dir = rospy.get_param('base_dir', '/home/michael/osg_ws/src/irv_trt_pose/irv_trt_pose/trt_config_files/')
         # Based Dir should contain: model_file resnet/densenet, human_pose json file
 
         self.model_name = rospy.get_param('model', 'resnet18') # default to Resnet18
@@ -116,14 +116,14 @@ class TRTPoseNode(object):
         rospy.logwarn('parse {} '.format(rospy.Time.now().to_nsec()))
         cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
         self.counts, self.objects, self.peaks = self.parse_objects(cmap, paf)  # , cmap_threshold=0.15, link_threshold=0.15)
-        # rospy.logwarn('draw_objs {} '.format(rospy.Time.now().to_nsec()))
-        # self.annotated_image = draw_objects(image=self.image, object_counts=self.counts, objects=self.objects, normalized_peaks=self.peaks, topology=self.topology)
+        rospy.logwarn('draw_objs {} '.format(rospy.Time.now().to_nsec()))
+        self.annotated_image = draw_objects(image=self.image, object_counts=self.counts, objects=self.objects, normalized_peaks=self.peaks, topology=self.topology)
         self.parse_k()
 
-        # rospy.logwarn('cvbridge annotated {} '.format(rospy.Time.now().to_nsec()))
-        # image_msg = self.image_np_to_image_msg(self.annotated_image)
-        # rospy.logwarn('publish annotated {} '.format(rospy.Time.now().to_nsec()))
-        # self.image_pub.publish(image_msg)
+        rospy.logwarn('cvbridge annotated {} '.format(rospy.Time.now().to_nsec()))
+        image_msg = self.image_np_to_image_msg(self.annotated_image)
+        rospy.logwarn('publish annotated {} '.format(rospy.Time.now().to_nsec()))
+        self.image_pub.publish(image_msg)
 
         if self.show_image_param:
             cv2.imshow('frame', self.annotated_image)
